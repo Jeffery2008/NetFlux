@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 min-h-screen font-sans text-gray-800;
+  }
+}
+
+@layer utilities {
+  .card-shadow { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); }
+  .num-animate { transition: all 0.2s ease; }
+  .progress-animate { transition: width 0.3s ease; }
+  .group-active { @apply bg-primary text-white border-primary !important; }
+  .fast-group { @apply border-fast text-fast hover:bg-fast/10; }
+  .isp-group { @apply border-isp text-isp hover:bg-isp/10; }
+  .factory-group { @apply border-factory text-factory hover:bg-factory/10; }
+}

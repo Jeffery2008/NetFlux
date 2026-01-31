@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "updatedAt": "2026-01-31",
+  "groups": {
+    "fast": {
+      "name": "快速节点组",
+      "color": "#FF7D00",
+      "nodes": [
+        { "id": 1, "name": "香港CN2节点", "url": "https://speed.hkcdn.net" },
+        { "id": 2, "name": "东京软银节点", "url": "https://speed.tokyo01.sakura.ne.jp" },
+        { "id": 3, "name": "新加坡直连节点", "url": "https://speed.singapore1.leaseweb.net" },
+        { "id": 4, "name": "美国洛杉矶节点", "url": "https://speed.lax1.leaseweb.net" }
+      ]
+    },
+    "isp": {
+      "name": "运营商节点组",
+      "color": "#6600CC",
+      "nodes": [
+        { "id": 5, "name": "北京联通节点", "url": "https://speed.bjtelecom.net.cn" },
+        { "id": 6, "name": "广州移动节点", "url": "https://speed.gd.chinamobile.com" },
+        { "id": 7, "name": "上海电信节点", "url": "https://speed.shtelecom.net.cn" }
+      ]
+    },
+    "factory": {
+      "name": "常规软件节点组",
+      "color": "#E60012",
+      "nodes": [
+        { "id": 8, "name": "阿里杭州节点", "url": "https://speed.aliyun.com" },
+        { "id": 9, "name": "腾讯深圳节点", "url": "https://speed.cloud.tencent.com" },
+        { "id": 10, "name": "百度北京节点", "url": "https://speed.baidu.com" }
+      ]
+    }
+  }
+}

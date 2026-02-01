@@ -31,15 +31,19 @@ export function DashboardLayout({
     // Smart Compression Logic
     useEffect(() => {
         const calculateCompression = () => {
+            const width = window.innerWidth;
+
+            // On mobile, always collapse to ensure layout stability
+            if (width < 768) {
+                setCompressionLevel(4);
+                return;
+            }
+
             if (!showFloatingStats) {
-                // Reset to 0 implies expanding when stats hide. 
-                // But wait, if we scroll back up, showFloatingStats becomes false.
-                // We want full controls then.
                 setCompressionLevel(0);
                 return;
             }
 
-            const width = window.innerWidth;
             const halfWidth = width / 2;
             // Center Stats (approx 530px wide with Time / 2 = 265px) + Padding (20px)
             const centerOccupancy = 285;
@@ -55,7 +59,6 @@ export function DashboardLayout({
             // Else Level 4: Collapse Export
 
             if (availableSpace > 540) setCompressionLevel(0);
-            else if (availableSpace > 440) setCompressionLevel(1);
             else if (availableSpace > 360) setCompressionLevel(2);
             else if (availableSpace > 310) setCompressionLevel(3);
             else setCompressionLevel(4);
@@ -127,10 +130,10 @@ export function DashboardLayout({
         <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
             {/* Header */}
             <header
-                className="border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60 sticky top-0 z-50 transition-all duration-300 animate-enter"
+                className="h-28 md:h-16 border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60 sticky top-0 z-50 transition-all duration-300 animate-enter"
                 style={{ animationDelay: '0ms', animationFillMode: 'forwards' }}
             >
-                <div className="container mx-auto px-4 h-16 flex items-center justify-between relative">
+                <div className="container mx-auto px-4 h-full flex flex-row items-start md:items-center justify-between relative pt-4 md:pt-0">
                     <div className={`flex items-center space-x-2 transition-opacity duration-500 ${showFloatingStats ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
                         <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                             <Zap className="h-5 w-5 text-primary-foreground" />
@@ -140,13 +143,13 @@ export function DashboardLayout({
 
                     {/* Floating Stats - Absolute Center with iOS Dynamic Island Physics */}
                     <div
-                        className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center space-x-3 md:space-x-6
+                        className={`absolute left-2 right-2 md:left-1/2 md:right-auto bottom-3 md:bottom-auto md:top-1/2 md:-translate-x-1/2 flex items-center justify-center space-x-3 md:space-x-6
                         transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] z-10
                         ${showFloatingStats
-                                ? 'opacity-100 scale-100 blur-0 translate-y-[-50%]'
-                                : 'opacity-0 scale-90 blur-sm translate-y-[-150%] pointer-events-none'
+                                ? 'opacity-100 scale-100 blur-0 translate-y-0 md:translate-y-[-50%]'
+                                : 'opacity-0 scale-90 blur-sm translate-y-4 md:translate-y-[-150%] pointer-events-none'
                             }
-                        bg-background/80 backdrop-blur-xl px-4 py-2 md:px-6 rounded-full border border-border/50 shadow-lg w-max max-w-[90vw]`}
+                        bg-background/80 backdrop-blur-xl px-4 py-2 md:px-6 rounded-full border border-border/50 shadow-lg w-auto md:w-max md:max-w-none`}
                     >
                         <div className="flex items-center space-x-2">
                             <Zap className="h-3.5 w-3.5 text-[#0070F3]" />
@@ -175,28 +178,7 @@ export function DashboardLayout({
 
                     <div className="flex items-center space-x-4 z-20">
                         <div className="flex items-center space-x-3 z-20">
-                            {/* Threads Control - Collapsible (Level 1 - First to Collapse) */}
-                            <div
-                                className={`flex items-center bg-muted/50 rounded-full border border-border/50 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden
-                                ${isCollapsed(1) ? 'w-8 h-8 px-0 justify-center bg-transparent border-transparent' : 'w-auto h-8 px-3 space-x-3'}`}
-                                style={{ transitionDelay: showFloatingStats ? '0ms' : '150ms' }}
-                            >
-                                <SlidersHorizontal className={`flex-shrink-0 h-4 w-4 transition-colors duration-300 ${isCollapsed(1) ? 'text-muted-foreground hover:text-foreground' : 'text-muted-foreground'}`} />
 
-                                <div className={`flex items-center space-x-3 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] origin-left
-                                    ${isCollapsed(1) ? 'w-0 opacity-0 translate-x-4' : 'w-[140px] opacity-100 translate-x-0'}`}>
-                                    <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Threads: <span className="text-foreground font-bold tabular-nums">{threadCount}</span></span>
-                                    <Slider
-                                        defaultValue={[16]}
-                                        max={64}
-                                        min={1}
-                                        step={1}
-                                        className="w-20"
-                                        onValueChange={(vals) => setThreadCount(vals[0])}
-                                        disabled={isTesting}
-                                    />
-                                </div>
-                            </div>
 
                             {/* Status Control - Collapsible (Level 2) */}
                             <div
@@ -255,6 +237,30 @@ export function DashboardLayout({
                     className="order-2 lg:order-1 lg:col-span-3 flex flex-col space-y-4 h-auto lg:h-[calc(100vh-8rem)] sticky top-20 animate-enter"
                     style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}
                 >
+                    <Card className="flex flex-col overflow-hidden mb-4">
+                        <CardHeader className="py-4 border-b">
+                            <CardTitle className="text-sm font-medium uppercase tracking-wider flex items-center gap-2">
+                                <SlidersHorizontal className="h-4 w-4" /> Concurrency
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4">
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm text-muted-foreground">Worker Threads</span>
+                                    <span className="text-sm font-bold tabular-nums">{threadCount}</span>
+                                </div>
+                                <Slider
+                                    defaultValue={[16]}
+                                    max={64}
+                                    min={1}
+                                    step={1}
+                                    className="w-full"
+                                    onValueChange={(vals) => setThreadCount(vals[0])}
+                                    disabled={isTesting}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
                     <Card className="flex-1 flex flex-col overflow-hidden">
                         <CardHeader className="py-4 border-b">
                             <CardTitle className="text-sm font-medium uppercase tracking-wider flex items-center gap-2">

@@ -26,7 +26,7 @@ export function NodeStatusTable({ workerStats }) {
                 </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-                <div className="max-h-[300px] overflow-y-auto">
+                <div className="max-h-[300px] overflow-y-auto overflow-x-auto">
                     <Table>
                         <TableHeader className="bg-muted/50 sticky top-0 backdrop-blur z-10">
                             <TableRow>

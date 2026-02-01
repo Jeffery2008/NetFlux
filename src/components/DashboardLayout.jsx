@@ -140,13 +140,13 @@ export function DashboardLayout({
 
                     {/* Floating Stats - Absolute Center with iOS Dynamic Island Physics */}
                     <div
-                        className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center space-x-6
+                        className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center space-x-3 md:space-x-6
                         transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] z-10
                         ${showFloatingStats
                                 ? 'opacity-100 scale-100 blur-0 translate-y-[-50%]'
                                 : 'opacity-0 scale-90 blur-sm translate-y-[-150%] pointer-events-none'
                             }
-                        hidden md:flex bg-background/80 backdrop-blur-xl px-6 py-2 rounded-full border border-border/50 shadow-lg`}
+                        bg-background/80 backdrop-blur-xl px-4 py-2 md:px-6 rounded-full border border-border/50 shadow-lg w-max max-w-[90vw]`}
                     >
                         <div className="flex items-center space-x-2">
                             <Zap className="h-3.5 w-3.5 text-[#0070F3]" />
@@ -159,14 +159,14 @@ export function DashboardLayout({
                             <span className="text-xs font-medium text-muted-foreground">Latency</span>
                             <span className="text-sm font-bold tabular-nums text-[#F5A623]">{metrics.delay} <span className="text-[10px]">ms</span></span>
                         </div>
-                        <div className="w-px h-3 bg-border"></div>
-                        <div className="flex items-center space-x-2">
+                        <div className="w-px h-3 bg-border hidden md:block"></div>
+                        <div className="hidden md:flex items-center space-x-2">
                             <Database className="h-3.5 w-3.5 text-muted-foreground" />
                             <span className="text-xs font-medium text-muted-foreground">Data</span>
                             <span className="text-sm font-bold tabular-nums text-foreground">{metrics.totalFlowStr}</span>
                         </div>
-                        <div className="w-px h-3 bg-border"></div>
-                        <div className="flex items-center space-x-2">
+                        <div className="w-px h-3 bg-border hidden md:block"></div>
+                        <div className="hidden md:flex items-center space-x-2">
                             <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                             <span className="text-xs font-medium text-muted-foreground">Time</span>
                             <span className="text-sm font-bold tabular-nums text-foreground">{metrics.duration}</span>
@@ -235,7 +235,7 @@ export function DashboardLayout({
 
                             {/* Export Button - Collapsible (Level 4 - Last to Collapse) */}
                             <div
-                                className={`transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden ${isCollapsed(4) ? 'w-9' : 'w-auto'}`}
+                                className={`transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden hidden sm:block ${isCollapsed(4) ? 'w-9' : 'w-auto'}`}
                                 style={{ transitionDelay: showFloatingStats ? '150ms' : '0ms' }}
                             >
                                 <Button variant="outline" size="sm" onClick={handleExport} disabled={isTesting} className={`transition-all duration-500 ${isCollapsed(4) ? 'px-0 w-9' : 'px-3'}`}>
@@ -246,13 +246,13 @@ export function DashboardLayout({
                         </div>
                     </div>
                 </div>
-            </header>
+            </header >
 
             <main className="flex-1 container mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-                {/* Left Sidebar: Node Selector */}
+                {/* Left Sidebar: Node Selector (Order 2 on Mobile, Order 1 on Desktop) */}
                 <section
-                    className="lg:col-span-3 flex flex-col space-y-4 h-[calc(100vh-8rem)] sticky top-20 animate-enter"
+                    className="order-2 lg:order-1 lg:col-span-3 flex flex-col space-y-4 h-auto lg:h-[calc(100vh-8rem)] sticky top-20 animate-enter"
                     style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}
                 >
                     <Card className="flex-1 flex flex-col overflow-hidden">
@@ -271,8 +271,8 @@ export function DashboardLayout({
                     </Card>
                 </section>
 
-                {/* Right Content */}
-                <section className="lg:col-span-9 flex flex-col space-y-6">
+                {/* Right Content (Order 1 on Mobile, Order 2 on Desktop) */}
+                <section className="order-1 lg:order-2 lg:col-span-9 flex flex-col space-y-6">
 
                     {/* Top: Metrics Cards */}
                     <div
@@ -350,6 +350,6 @@ export function DashboardLayout({
 
                 </section>
             </main>
-        </div>
+        </div >
     );
 }

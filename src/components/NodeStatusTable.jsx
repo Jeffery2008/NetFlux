@@ -19,29 +19,32 @@ export function NodeStatusTable({ workerStats }) {
     };
 
     return (
-        <Card className="animate-enter" style={{ animationDelay: '350ms', animationFillMode: 'forwards' }}>
-            <CardHeader className="py-3 border-b">
+        <Card className="animate-enter overflow-hidden border-t-0 shadow-sm" style={{ animationDelay: '350ms', animationFillMode: 'forwards' }}>
+            <CardHeader className="py-3 border-b bg-muted/20">
                 <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                     <Activity className="h-3 w-3" /> Node Statistics
                 </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-                <div className="max-h-[300px] overflow-y-auto overflow-x-auto">
+                <div className="max-h-[300px] overflow-y-auto overflow-x-auto scroller-pretty">
                     <Table>
-                        <TableHeader className="bg-muted/50 sticky top-0 backdrop-blur z-10">
-                            <TableRow>
-                                <TableHead className="w-[180px]">Node Name</TableHead>
-                                <TableHead className="text-right">Latency</TableHead>
-                                <TableHead className="text-right">Speed</TableHead>
-                                <TableHead className="text-right">Total Data</TableHead>
-                                <TableHead className="w-[100px] text-right">Status</TableHead>
+                        <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
+                            <TableRow className="hover:bg-transparent border-b">
+                                <TableHead className="w-[180px] font-semibold text-xs uppercase tracking-wider">Node Name</TableHead>
+                                <TableHead className="text-right font-semibold text-xs uppercase tracking-wider">Latency</TableHead>
+                                <TableHead className="text-right font-semibold text-xs uppercase tracking-wider">Speed</TableHead>
+                                <TableHead className="text-right font-semibold text-xs uppercase tracking-wider">Total Data</TableHead>
+                                <TableHead className="w-[100px] text-right font-semibold text-xs uppercase tracking-wider">Status</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {workerStats.map((node) => (
-                                <TableRow key={node.id} className="text-xs md:text-sm">
+                                <TableRow key={node.id} className="text-xs md:text-sm hover:bg-muted/30 transition-colors">
                                     <TableCell className="font-medium truncate max-w-[150px]" title={node.name}>
-                                        {node.name}
+                                        <div className="flex items-center space-x-2">
+                                            <div className={`w-1.5 h-1.5 rounded-full ${node.status === 'downloading' ? 'bg-blue-500 animate-pulse' : node.status === 'error' ? 'bg-red-500' : 'bg-muted-foreground/30'}`} />
+                                            <span>{node.name}</span>
+                                        </div>
                                     </TableCell>
                                     <TableCell className="text-right tabular-nums">
                                         {node.latency ? `${node.latency} ms` : <span className="text-muted-foreground">--</span>}

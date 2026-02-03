@@ -141,15 +141,18 @@ export function DashboardLayout({
             )}
             {/* Header */}
             <header
-                className="h-28 md:h-16 border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60 sticky top-0 z-50 transition-all duration-300 animate-enter"
+                className="h-28 md:h-16 border-b bg-card rounded-md m-2 mt-2 md:mx-6 md:mt-4 shadow-sm border-border/40 sticky top-0 z-50 transition-all duration-300 animate-enter"
                 style={{ animationDelay: '0ms', animationFillMode: 'forwards' }}
             >
                 <div className="container mx-auto px-4 h-full flex flex-row items-start md:items-center justify-between relative pt-4 md:pt-0">
-                    <div className={`flex items-center space-x-2 transition-opacity duration-500 ${showFloatingStats ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
-                        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                            <Zap className="h-5 w-5 text-primary-foreground" />
+                    <div className={`flex items-center space-x-3 transition-opacity duration-500 ${showFloatingStats ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
+                        <div className="w-9 h-9 bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center transform transition-transform hover:scale-105 active:scale-95 duration-200">
+                            <Zap className="h-5 w-5 fill-current" />
                         </div>
-                        <h1 className="font-bold text-xl tracking-tight">NETFLUX</h1>
+                        <div className="flex flex-col leading-none">
+                            <h1 className="font-bold text-lg tracking-tight bg-gradient-to-br from-foreground to-muted-foreground bg-clip-text text-transparent">NETFLUX</h1>
+                            <span className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase opacity-80">Speed Test</span>
+                        </div>
                     </div>
 
                     {/* Floating Stats - Absolute Center with iOS Dynamic Island Physics */}
@@ -160,30 +163,46 @@ export function DashboardLayout({
                                 ? 'opacity-100 scale-100 blur-0 translate-y-0 md:translate-y-[-50%]'
                                 : 'opacity-0 scale-90 blur-sm translate-y-4 md:translate-y-[-150%] pointer-events-none'
                             }
-                        bg-background/80 backdrop-blur-xl px-4 py-2 md:px-6 rounded-full border border-border/50 shadow-lg w-auto md:w-max md:max-w-none`}
+                        bg-background/80 backdrop-blur-xl px-4 py-2 md:px-6 rounded-full border border-border/50 shadow-2xl w-auto md:w-max md:max-w-none ring-1 ring-white/10 dark:ring-white/5`}
                     >
-                        <div className="flex items-center space-x-2">
-                            <Zap className="h-3.5 w-3.5 text-[#0070F3]" />
-                            <span className="text-xs font-medium text-muted-foreground">Speed</span>
-                            <span className="text-sm font-bold tabular-nums text-[#0070F3]">{metrics.speed} <span className="text-[10px]">MB/s</span></span>
-                        </div>
-                        <div className="w-px h-3 bg-border"></div>
-                        <div className="flex items-center space-x-2">
-                            <Activity className="h-3.5 w-3.5 text-[#F5A623]" />
-                            <span className="text-xs font-medium text-muted-foreground">Latency</span>
-                            <span className="text-sm font-bold tabular-nums text-[#F5A623]">{metrics.delay} <span className="text-[10px]">ms</span></span>
-                        </div>
-                        <div className="w-px h-3 bg-border hidden md:block"></div>
-                        <div className="hidden md:flex items-center space-x-2">
-                            <Database className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-xs font-medium text-muted-foreground">Data</span>
-                            <span className="text-sm font-bold tabular-nums text-foreground">{metrics.totalFlowStr}</span>
-                        </div>
-                        <div className="w-px h-3 bg-border hidden md:block"></div>
-                        <div className="hidden md:flex items-center space-x-2">
-                            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-xs font-medium text-muted-foreground">Time</span>
-                            <span className="text-sm font-bold tabular-nums text-foreground">{metrics.duration}</span>
+                        <div className="flex items-center space-x-4">
+                            <div className="flex flex-col items-center md:flex-row md:space-x-2">
+                                <div className="flex items-center space-x-1.5">
+                                    <Zap className="h-3.5 w-3.5 text-[#0070F3]" />
+                                    <span className="text-xs font-medium text-muted-foreground">Speed</span>
+                                </div>
+                                <span className="text-sm font-bold tabular-nums text-[#0070F3]">{metrics.speed} <span className="text-[10px] text-muted-foreground/70">MB/s</span></span>
+                            </div>
+                            
+                            <div className="w-px h-8 bg-gradient-to-b from-transparent via-border to-transparent hidden md:block"></div>
+                            
+                            <div className="flex flex-col items-center md:flex-row md:space-x-2">
+                                <div className="flex items-center space-x-1.5">
+                                    <Activity className="h-3.5 w-3.5 text-[#F5A623]" />
+                                    <span className="text-xs font-medium text-muted-foreground">Latency</span>
+                                </div>
+                                <span className="text-sm font-bold tabular-nums text-[#F5A623]">{metrics.delay} <span className="text-[10px] text-muted-foreground/70">ms</span></span>
+                            </div>
+
+                            <div className="w-px h-8 bg-gradient-to-b from-transparent via-border to-transparent hidden md:block"></div>
+
+                            <div className="hidden md:flex flex-col items-center md:flex-row md:space-x-2">
+                                <div className="flex items-center space-x-1.5">
+                                    <Database className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="text-xs font-medium text-muted-foreground">Data</span>
+                                </div>
+                                <span className="text-sm font-bold tabular-nums text-foreground">{metrics.totalFlowStr}</span>
+                            </div>
+
+                            <div className="w-px h-8 bg-gradient-to-b from-transparent via-border to-transparent hidden md:block"></div>
+
+                            <div className="hidden md:flex flex-col items-center md:flex-row md:space-x-2">
+                                <div className="flex items-center space-x-1.5">
+                                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="text-xs font-medium text-muted-foreground">Time</span>
+                                </div>
+                                <span className="text-sm font-bold tabular-nums text-foreground">{metrics.duration}</span>
+                            </div>
                         </div>
                     </div>
 
@@ -330,12 +349,13 @@ export function DashboardLayout({
                             value={metrics.totalFlowStr}
                             // Unit is included in value string now
                             icon={Database}
+                            colorClass="text-purple-500"
                         />
                         <StatsCard
                             title="Duration"
                             value={metrics.duration}
-                            unit="m:s"
                             icon={Clock}
+                            colorClass="text-blue-500"
                         />
                     </div>
 
@@ -381,6 +401,28 @@ export function DashboardLayout({
 
                 </section>
             </main>
+
+            {/* Footer */}
+            <footer className="py-6 border-t mt-auto bg-card/30 backdrop-blur-sm">
+                <div className="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center text-xs text-muted-foreground gap-4">
+                    <div className="flex items-center gap-1">
+                        <span>Built with ❤️ by</span>
+                        <a href="https://github.com/Jeffery2008" target="_blank" rel="noreferrer" className="font-medium text-foreground hover:underline decoration-border underline-offset-4 transition-colors">
+                            Jeffery
+                        </a>
+                    </div>
+                    
+                    <div className="flex items-center gap-6">
+                         <a href="https://github.com/Jeffery2008/NetFlux" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-foreground transition-colors group">
+                            <span>Project Repo</span>
+                        </a>
+                        <div className="w-px h-3 bg-border"></div>
+                        <a href="https://github.com/Jeffery2008/NetFlux/blob/main/LICENSE" target="_blank" rel="noreferrer" className="hover:text-foreground transition-colors">
+                            AGPL-3.0 License
+                        </a>
+                    </div>
+                </div>
+            </footer>
         </div >
     );
 }

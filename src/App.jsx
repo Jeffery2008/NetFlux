@@ -76,15 +76,21 @@ function App() {
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const root = document.documentElement;
+
+    // Apply data-theme attribute
     if (theme === 'system') {
-      root.removeAttribute('data-theme');
+        const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        root.setAttribute('data-theme', systemTheme);
+        root.className = systemTheme; // Fallback for some Tailwind configs
     } else {
-      root.setAttribute('data-theme', theme);
+        root.setAttribute('data-theme', theme);
+        root.className = theme;
     }
+
     try {
       localStorage.setItem(THEME_KEY, theme);
     } catch {
-      // Ignore storage failures (private mode, disabled storage).
+      // Ignore storage failures
     }
   }, [theme]);
 

@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
 const CONFIG = {
-    requestTimeout: 15000,
+    requestTimeout: 5000,
     logLimit: 50,
-    chartUpdateInterval: 1000
+    chartUpdateInterval: 1000,
+    latencyUpdateInterval: 1000
 };
 
 export function useSpeedTest() {
@@ -38,7 +39,9 @@ export function useSpeedTest() {
     const testStartTimeRef = useRef(0);
     const globalBytesRef = useRef(0);
     const refreshTimerRef = useRef(null);
+    const latencyTimerRef = useRef(null);
     const abortControllerRef = useRef(new AbortController());
+    const latencyTickingRef = useRef(false);
 
     // State for per-node status table
     const [workerStats, setWorkerStats] = useState([]);
@@ -66,12 +69,16 @@ export function useSpeedTest() {
     const measureLatency = async (node, signal) => {
         const url = node.url.startsWith('http') ? node.url : `https://${node.url}`;
         const cacheBust = `${url}${url.includes('?') ? '&' : '?'}ping=${Date.now()}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), CONFIG.requestTimeout);
+        const onAbort = () => controller.abort();
+        if (signal) signal.addEventListener('abort', onAbort);
 
         try {
             const start = performance.now();
             await fetch(cacheBust, {
                 method: 'HEAD',
-                signal: signal,
+                signal: controller.signal,
                 cache: 'no-store',
                 mode: 'cors'
             });
@@ -79,6 +86,9 @@ export function useSpeedTest() {
             return Math.round(rtt);
         } catch (e) {
             return null;
+        } finally {
+            clearTimeout(timeoutId);
+            if (signal) signal.removeEventListener('abort', onAbort);
         }
     };
 
@@ -106,20 +116,39 @@ export function useSpeedTest() {
             const cacheBust = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}-${threadId}-${Math.random()}`;
 
             try {
+                const reqStart = performance.now();
                 const response = await fetch(cacheBust, {
                     signal: signal,
                     cache: 'no-store',
                     mode: 'cors'
                 });
 
+                // Update latency from traffic thread (TTFB)
+                const lat = Math.round(performance.now() - reqStart);
+                if (nodeStatsRef.current[nodeId]) {
+                    nodeStatsRef.current[nodeId].latency = lat;
+                }
+
                 if (!response.body) throw new Error("No body");
 
                 const reader = response.body.getReader();
                 let lastChunkTime = performance.now();
+                const streamStartTime = performance.now();
 
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
+
+                    // Force rotation of connections to allow latency checks and fresh TTFB samples
+                    if (performance.now() - streamStartTime > 2000) {
+                        try {
+                             await reader.cancel();
+                        } catch (e) {
+                            // ignore cancel errors
+                        }
+                        break;
+                    }
+
                     if (value) {
                         const now = performance.now();
                         const chunkSize = value.length;
@@ -245,6 +274,7 @@ export function useSpeedTest() {
     const startTest = (nodes, threadCount = 16) => {
         if (!nodes || nodes.length === 0) {
             appendLog('No nodes selected.', 'warning');
+            setTestStatus('No nodes selected');
             return;
         }
 
@@ -261,7 +291,13 @@ export function useSpeedTest() {
         // Initialize Node Stats
         nodes.forEach(n => {
             nodeStatsRef.current[n.id] = {
-                id: n.id, name: n.name, speed: 0, bytes: 0, latency: null, status: 'pending'
+                id: n.id,
+                name: n.name,
+                speed: 0,
+                bytes: 0,
+                latency: null,
+                status: 'pending',
+                isPinging: false
             };
         });
 
@@ -271,17 +307,38 @@ export function useSpeedTest() {
 
         appendLog(`Started Traffic Mode: ${nodes.length} Nodes, ${threadCount} Threads.`, 'info');
 
-        // 1. Initial Latency Check (Concurrent for all nodes)
-        // We do this once at start to populate latency table
-        nodes.forEach(async (node) => {
+        const runLatencySweep = () => {
             if (signal.aborted) return;
-            nodeStatsRef.current[node.id].status = 'pinging';
-            const lat = await measureLatency(node, signal);
-            if (!signal.aborted) {
-                nodeStatsRef.current[node.id].latency = lat;
-                // Don't set status to done, let threads set it to downloading
-            }
-        });
+
+            nodes.forEach(node => {
+                const entry = nodeStatsRef.current[node.id];
+                if (!entry || entry.isPinging) return;
+
+                // Mark as pinging to prevent overlapping checks for this specific node
+                entry.isPinging = true;
+                if (entry.status === 'pending') entry.status = 'pinging';
+
+                measureLatency(node, signal)
+                    .then(lat => {
+                        if (!signal.aborted && nodeStatsRef.current[node.id]) {
+                            // Only update if success, or if we want to show failure (latency=null)
+                            // But since traffic threads also update latency, we don't want to overwrite a valid value with null due to queue timeout
+                            if (lat !== null) {
+                                nodeStatsRef.current[node.id].latency = lat;
+                            }
+                        }
+                    })
+                    .finally(() => {
+                        if (nodeStatsRef.current[node.id]) {
+                            nodeStatsRef.current[node.id].isPinging = false;
+                        }
+                    });
+            });
+        };
+
+        // 1. Initial Latency Check + keep updating every second
+        runLatencySweep();
+        latencyTimerRef.current = setInterval(runLatencySweep, CONFIG.latencyUpdateInterval);
 
         // 2. Launch Thread Pool
         const actualThreads = Math.max(1, Math.min(64, threadCount));
@@ -300,6 +357,10 @@ export function useSpeedTest() {
         if (refreshTimerRef.current) {
             clearInterval(refreshTimerRef.current);
             refreshTimerRef.current = null;
+        }
+        if (latencyTimerRef.current) {
+            clearInterval(latencyTimerRef.current);
+            latencyTimerRef.current = null;
         }
         setIsTesting(false);
         setTestStatus('Stopped');

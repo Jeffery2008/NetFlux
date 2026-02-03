@@ -7,36 +7,6 @@
       "color": "#0070F3",
       "nodes": [
         {
-          "id": 101,
-          "name": "移动节点 - 咪咕快游",
-          "url": "https://gcache.migu.cn/prod/upload/game_resource/channel_for_homepage_game2/202408/2909/59/20240829095855985_mgwebp1.jpg"
-        },
-        {
-          "id": 102,
-          "name": "移动节点 - 中国移动云盘",
-          "url": "https://yun.mcloud.139.com/hongseyunpan/2.43G.zip"
-        },
-        {
-          "id": 103,
-          "name": "移动节点 - 咪咕视频",
-          "url": "https://img.cmvideo.cn/publish/noms/2023/12/06/1O4SHFIFR36BD.gif"
-        },
-        {
-          "id": 104,
-          "name": "移动节点 - 和彩云",
-          "url": "https://img.mcloud.139.com/material_prod/material_media/20221128/1669626861087.png"
-        },
-        {
-          "id": 105,
-          "name": "移动节点 - 咪咕音乐",
-          "url": "https://wsdkdl.migu.cn/common/mgmusic/migu_https.js"
-        },
-        {
-          "id": 106,
-          "name": "移动节点 - 咪咕爱看[定向]",
-          "url": "https://img.aikan.miguvideo.com/publish/noms/2024/04/22/1O5MNLF3AN2JL.gif"
-        },
-        {
           "id": 107,
           "name": "移动节点 - 中国移动云盘[定向]",
           "url": "https://yun.mcloud.139.com/mCloudPc/v832/mCloud_Setup-001.exe"
@@ -47,11 +17,6 @@
       "name": "电信节点 (单节点并行)",
       "color": "#F5A623",
       "nodes": [
-        {
-          "id": 201,
-          "name": "电信节点 - 天翼云盘",
-          "url": "https://static.e.189.cn/open/login/page/web/v5.0/static/js/captch.min.js?v1.1"
-        },
         {
           "id": 202,
           "name": "电信节点 - 天翼云桌面",

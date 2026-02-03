@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Play, Square, Download, Activity, Zap, Clock, Database, SlidersHorizontal } from 'lucide-react';
+import { Play, Square, Download, Activity, Zap, Clock, Database, SlidersHorizontal, Sun, Moon } from 'lucide-react';
 
 export function DashboardLayout({
     groups,
@@ -19,7 +19,11 @@ export function DashboardLayout({
     onGroupChange,
     onStart,
     onStop,
-    setChartUpdateCallback
+    setChartUpdateCallback,
+    theme,
+    onToggleTheme,
+    startDisabled,
+    showNoNodeToast
 }) {
     const chartRef = useRef(null);
     const scrollRef = useRef(null);
@@ -90,7 +94,7 @@ export function DashboardLayout({
         const imgData = chartRef.current.getDataURL({
             type: 'png',
             pixelRatio: 2,
-            backgroundColor: '#000000' // Dark background for export since theme is dark
+            backgroundColor: theme === 'light' ? '#ffffff' : '#000000'
         });
         if (imgData) {
             const anchor = document.createElement('a');
@@ -128,6 +132,13 @@ export function DashboardLayout({
 
     return (
         <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
+            {showNoNodeToast && (
+                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60]">
+                    <div className="flex items-center gap-3 rounded-full border border-border/60 bg-card/90 backdrop-blur px-4 py-2 shadow-lg animate-enter">
+                        <span className="text-sm font-medium text-destructive">请先勾选节点再开始测试</span>
+                    </div>
+                </div>
+            )}
             {/* Header */}
             <header
                 className="h-28 md:h-16 border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60 sticky top-0 z-50 transition-all duration-300 animate-enter"
@@ -178,6 +189,15 @@ export function DashboardLayout({
 
                     <div className="flex items-center space-x-4 z-20">
                         <div className="flex items-center space-x-3 z-20">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={onToggleTheme}
+                                className="rounded-full border border-border/60 bg-background/60 backdrop-blur hover:bg-accent/70"
+                                aria-label="Toggle theme"
+                            >
+                                {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                            </Button>
 
 
                             {/* Status Control - Collapsible (Level 2) */}
@@ -208,7 +228,12 @@ export function DashboardLayout({
                                         <span className={`whitespace-nowrap overflow-hidden transition-all duration-500 ${isCollapsed(3) ? 'w-0 opacity-0 translate-x-4' : 'w-auto opacity-100 translate-x-0'}`}>Stop</span>
                                     </Button>
                                 ) : (
-                                    <Button size="sm" onClick={() => onStart(threadCount)} className={`transition-all duration-500 ${isCollapsed(3) ? 'px-0 w-9' : 'px-3'}`}>
+                                    <Button
+                                        size="sm"
+                                        onClick={() => onStart(threadCount)}
+                                        disabled={startDisabled}
+                                        className={`transition-all duration-500 ${isCollapsed(3) ? 'px-0 w-9' : 'px-3'}`}
+                                    >
                                         <Play className={`h-4 w-4 fill-current ${isCollapsed(3) ? 'mr-0' : 'mr-2'}`} />
                                         <span className={`whitespace-nowrap overflow-hidden transition-all duration-500 ${isCollapsed(3) ? 'w-0 opacity-0 translate-x-4' : 'w-auto opacity-100 translate-x-0'}`}>Start</span>
                                     </Button>
@@ -339,7 +364,7 @@ export function DashboardLayout({
                         <CardHeader className="py-3 border-b">
                             <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Execution Log</CardTitle>
                         </CardHeader>
-                        <CardContent className="flex-1 p-3 overflow-y-auto bg-black/5 font-sans text-xs" ref={scrollRef}>
+                        <CardContent className="flex-1 p-3 overflow-y-auto bg-muted/40 font-sans text-xs" ref={scrollRef}>
                             <div className="space-y-1">
                                 {logs.map((log, i) => (
                                     <div key={i} className={`flex gap-2 ${log.type === 'danger' ? 'text-red-500' :

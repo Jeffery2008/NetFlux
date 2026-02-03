@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DashboardLayout } from './components/DashboardLayout';
 import { useSpeedTest } from './hooks/useSpeedTest';
 
 // Configuration for loading external data
 const DATA_URL = '/data/test-groups.json';
+const THEME_KEY = 'netflux-theme';
 const DEFAULT_GROUPS = {
   fast: {
     name: 'Default Group',
@@ -29,6 +30,20 @@ async function loadGroups() {
 function App() {
   const [groups, setGroups] = useState({});
   const [selectedNodes, setSelectedNodes] = useState([]);
+  const [showNoNodeToast, setShowNoNodeToast] = useState(false);
+  const toastTimerRef = useRef(null);
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === 'undefined') return 'system';
+    try {
+      return localStorage.getItem(THEME_KEY) || 'system';
+    } catch {
+      return 'system';
+    }
+  });
+  const [resolvedTheme, setResolvedTheme] = useState(() => {
+    if (typeof window === 'undefined') return 'dark';
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  });
 
   const {
     isTesting,
@@ -45,8 +60,61 @@ function App() {
     loadGroups().then(setGroups);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const media = window.matchMedia('(prefers-color-scheme: light)');
+    const sync = () => setResolvedTheme(media.matches ? 'light' : 'dark');
+    sync();
+    if (media.addEventListener) {
+      media.addEventListener('change', sync);
+      return () => media.removeEventListener('change', sync);
+    }
+    media.addListener(sync);
+    return () => media.removeListener(sync);
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    if (theme === 'system') {
+      root.removeAttribute('data-theme');
+    } else {
+      root.setAttribute('data-theme', theme);
+    }
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch {
+      // Ignore storage failures (private mode, disabled storage).
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleStart = (threadCount = 16) => {
+    if (!selectedNodes || selectedNodes.length === 0) {
+      setShowNoNodeToast(true);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => setShowNoNodeToast(false), 2200);
+      startTest(selectedNodes, threadCount);
+      return;
+    }
     startTest(selectedNodes, threadCount);
+  };
+
+  const effectiveTheme = theme === 'system' ? resolvedTheme : theme;
+  const handleToggleTheme = () => {
+    setTheme((prev) => {
+      if (prev === 'system') {
+        return resolvedTheme === 'light' ? 'dark' : 'light';
+      }
+      return prev === 'light' ? 'dark' : 'light';
+    });
   };
 
   return (
@@ -61,6 +129,10 @@ function App() {
       onStart={handleStart}
       onStop={stopTest}
       setChartUpdateCallback={setChartUpdateCallback}
+      theme={effectiveTheme}
+      onToggleTheme={handleToggleTheme}
+      startDisabled={!selectedNodes || selectedNodes.length === 0}
+      showNoNodeToast={showNoNodeToast}
     />
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ export function NodeSelector({ groups = {}, onSelectionChange, disabled }) {
     const [customNodes, setCustomNodes] = useState([]);
     const [customName, setCustomName] = useState('');
     const [customUrl, setCustomUrl] = useState('');
+    const hasInitializedSelectionRef = useRef(false);
 
     // Flatten available nodes for easier lookup
     const getAllNodes = () => {
@@ -27,6 +28,16 @@ export function NodeSelector({ groups = {}, onSelectionChange, disabled }) {
         const selected = allNodes.filter(n => selectedIds.has(n.id));
         onSelectionChange(selected);
     }, [selectedIds, customNodes, groups]);
+
+    useEffect(() => {
+        if (hasInitializedSelectionRef.current) return;
+
+        const configuredNodes = Object.values(groups).flatMap(g => g.nodes || []);
+        if (configuredNodes.length === 0) return;
+
+        hasInitializedSelectionRef.current = true;
+        setSelectedIds(new Set(configuredNodes.map(n => n.id)));
+    }, [groups]);
 
     const toggleNode = (id) => {
         if (disabled) return;

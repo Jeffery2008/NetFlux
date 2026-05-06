@@ -5,7 +5,6 @@ import { StatsCard } from './StatsCard';
 import { NodeStatusTable } from './NodeStatusTable';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Play, Square, Download, Activity, Zap, Clock, Database, SlidersHorizontal, Sun, Moon } from 'lucide-react';
 
@@ -30,51 +29,6 @@ export function DashboardLayout({
     const statsGridRef = useRef(null);
     const [showFloatingStats, setShowFloatingStats] = React.useState(false);
     const [threadCount, setThreadCount] = React.useState(16);
-    const [compressionLevel, setCompressionLevel] = React.useState(4); // 0: None, 4: Max Compression
-
-    // Smart Compression Logic
-    useEffect(() => {
-        const calculateCompression = () => {
-            const width = window.innerWidth;
-
-            // On mobile, always collapse to ensure layout stability
-            if (width < 768) {
-                setCompressionLevel(4);
-                return;
-            }
-
-            if (!showFloatingStats) {
-                setCompressionLevel(0);
-                return;
-            }
-
-            const halfWidth = width / 2;
-            // Center Stats (approx 530px wide with Time / 2 = 265px) + Padding (20px)
-            const centerOccupancy = 285;
-            const availableSpace = halfWidth - centerOccupancy - 20;
-
-            // Estimated Widths:
-            // Full ~ 540px. 
-            // Priority: Threads (Leftmost) must collapse FIRST (~160px saved) to avoid collision with Time.
-            // Level 0: Show All (> 540px space provided)
-            // Level 1: Collapse Threads (> 440px)
-            // Level 2: Collapse Status (> 360px)
-            // Level 3: Collapse Start (> 310px)
-            // Else Level 4: Collapse Export
-
-            if (availableSpace > 540) setCompressionLevel(0);
-            else if (availableSpace > 360) setCompressionLevel(2);
-            else if (availableSpace > 310) setCompressionLevel(3);
-            else setCompressionLevel(4);
-        };
-
-        calculateCompression();
-        window.addEventListener('resize', calculateCompression);
-        return () => window.removeEventListener('resize', calculateCompression);
-    }, [showFloatingStats]);
-
-    const isCollapsed = (level) => showFloatingStats && compressionLevel >= level;
-
     // Auto-scroll logs
     useEffect(() => {
         if (scrollRef.current) {
@@ -141,78 +95,77 @@ export function DashboardLayout({
             )}
             {/* Header */}
             <header
-                className="h-28 md:h-16 border-b bg-card rounded-md m-2 mt-2 md:mx-6 md:mt-4 shadow-sm border-border/40 sticky top-0 z-50 transition-all duration-300 animate-enter"
+                data-testid="app-header"
+                className="sticky top-0 z-50 mx-2 mt-2 rounded-md border border-border/70 bg-background/90 shadow-sm backdrop-blur-xl transition-all duration-300 md:mx-6 md:mt-4 animate-enter"
                 style={{ animationDelay: '0ms', animationFillMode: 'forwards' }}
             >
-                <div className="container mx-auto px-4 h-full flex flex-row items-start md:items-center justify-between relative pt-4 md:pt-0">
-                    <div className={`flex items-center space-x-3 transition-opacity duration-500 ${showFloatingStats ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
-                        <div className="w-9 h-9 bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center transform transition-transform hover:scale-105 active:scale-95 duration-200">
+                <div className="relative mx-auto flex h-16 w-full max-w-screen-2xl items-center justify-between gap-3 px-4">
+                    <div className={`flex min-w-0 items-center space-x-3 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${showFloatingStats ? '-translate-x-5 opacity-0 blur-sm pointer-events-none' : 'translate-x-0 opacity-100 blur-0'}`}>
+                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-foreground text-background transition-transform duration-200 hover:scale-105 active:scale-95">
                             <Zap className="h-5 w-5 fill-current" />
                         </div>
-                        <div className="flex flex-col leading-none">
-                            <h1 className="font-bold text-lg tracking-tight bg-gradient-to-br from-foreground to-muted-foreground bg-clip-text text-transparent">NETFLUX</h1>
-                            <span className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase opacity-80">Speed Test</span>
+                        <div className="flex min-w-0 flex-col leading-none">
+                            <h1 className="truncate text-lg font-semibold tracking-tight text-foreground">NETFLUX</h1>
+                            <span className="truncate text-[10px] font-medium uppercase tracking-widest text-muted-foreground opacity-80">Speed Test</span>
                         </div>
                     </div>
 
-                    {/* Floating Stats - Absolute Center with iOS Dynamic Island Physics */}
-                    <div
-                        className={`absolute left-2 right-2 md:left-1/2 md:right-auto bottom-3 md:bottom-auto md:top-1/2 md:-translate-x-1/2 flex items-center justify-center space-x-3 md:space-x-6
-                        transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] z-10
-                        ${showFloatingStats
-                                ? 'opacity-100 scale-100 blur-0 translate-y-0 md:translate-y-[-50%]'
-                                : 'opacity-0 scale-90 blur-sm translate-y-4 md:translate-y-[-150%] pointer-events-none'
-                            }
-                        bg-background/80 backdrop-blur-xl px-4 py-2 md:px-6 rounded-full border border-border/50 shadow-2xl w-auto md:w-max md:max-w-none ring-1 ring-white/10 dark:ring-white/5`}
-                    >
-                        <div className="flex items-center space-x-4">
-                            <div className="flex flex-col items-center md:flex-row md:space-x-2">
-                                <div className="flex items-center space-x-1.5">
-                                    <Zap className="h-3.5 w-3.5 text-[#0070F3]" />
-                                    <span className="text-xs font-medium text-muted-foreground">Speed</span>
+                    <div className="pointer-events-none absolute inset-x-3 top-1/2 z-20 flex -translate-y-1/2 justify-center">
+                        <div
+                            data-testid="floating-stats"
+                            className={`pointer-events-auto flex h-12 min-w-0 origin-center items-center justify-center overflow-hidden rounded-full border ring-1 ring-white/30 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform dark:ring-white/10
+                            ${showFloatingStats
+                                    ? 'w-[min(480px,calc(100vw-2rem))] scale-x-100 scale-y-100 border-border/70 bg-background/78 px-2 opacity-100 shadow-[0_12px_44px_rgba(0,0,0,0.22)] backdrop-blur-2xl blur-0 dark:bg-background/72 dark:shadow-[0_12px_44px_rgba(0,0,0,0.58)] sm:px-3'
+                                    : 'w-12 scale-x-[0.18] scale-y-75 border-transparent bg-background/10 px-0 opacity-0 shadow-none backdrop-blur-none blur-md pointer-events-none'
+                                }`}
+                        >
+                            <div className={`flex w-full min-w-0 items-center justify-center gap-1.5 transition-all duration-300 sm:gap-2 ${showFloatingStats ? 'translate-y-0 opacity-100 blur-0 delay-100' : 'translate-y-2 opacity-0 blur-sm'}`}>
+                                <div className="hidden h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-foreground text-background sm:flex">
+                                    <Zap className="h-4 w-4 fill-current" />
                                 </div>
-                                <span className="text-sm font-bold tabular-nums text-[#0070F3]">{metrics.speed} <span className="text-[10px] text-muted-foreground/70">MB/s</span></span>
-                            </div>
-                            
-                            <div className="w-px h-8 bg-gradient-to-b from-transparent via-border to-transparent hidden md:block"></div>
-                            
-                            <div className="flex flex-col items-center md:flex-row md:space-x-2">
-                                <div className="flex items-center space-x-1.5">
-                                    <Activity className="h-3.5 w-3.5 text-[#F5A623]" />
-                                    <span className="text-xs font-medium text-muted-foreground">Latency</span>
+
+                                <div className="flex min-w-0 items-center gap-1 rounded-full px-1 sm:gap-1.5 sm:px-1.5" title="Current speed">
+                                    <Zap className="h-3.5 w-3.5 flex-shrink-0 text-[#0070F3]" />
+                                    <span className="truncate text-xs font-semibold tabular-nums text-[#0070F3] sm:text-sm">{metrics.speed}</span>
+                                    <span className="flex-shrink-0 text-[9px] font-medium text-muted-foreground/70 sm:text-[10px]">MB/s</span>
                                 </div>
-                                <span className="text-sm font-bold tabular-nums text-[#F5A623]">{metrics.delay} <span className="text-[10px] text-muted-foreground/70">ms</span></span>
-                            </div>
 
-                            <div className="w-px h-8 bg-gradient-to-b from-transparent via-border to-transparent hidden md:block"></div>
+                                <div className="h-6 w-px flex-shrink-0 bg-border/80"></div>
 
-                            <div className="hidden md:flex flex-col items-center md:flex-row md:space-x-2">
-                                <div className="flex items-center space-x-1.5">
-                                    <Database className="h-3.5 w-3.5 text-muted-foreground" />
-                                    <span className="text-xs font-medium text-muted-foreground">Data</span>
+                                <div className="flex min-w-0 items-center gap-1 rounded-full px-1 sm:gap-1.5 sm:px-1.5" title="Total data used">
+                                    <Database className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                                    <span className="max-w-[4.8rem] truncate text-xs font-semibold tabular-nums text-foreground sm:max-w-[7rem] sm:text-sm">{metrics.totalFlowStr}</span>
                                 </div>
-                                <span className="text-sm font-bold tabular-nums text-foreground">{metrics.totalFlowStr}</span>
-                            </div>
 
-                            <div className="w-px h-8 bg-gradient-to-b from-transparent via-border to-transparent hidden md:block"></div>
-
-                            <div className="hidden md:flex flex-col items-center md:flex-row md:space-x-2">
-                                <div className="flex items-center space-x-1.5">
-                                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                                    <span className="text-xs font-medium text-muted-foreground">Time</span>
+                                <div className="ml-1 flex-shrink-0">
+                                    {isTesting ? (
+                                        <Button variant="destructive" size="sm" onClick={onStop} className="h-8 rounded-full px-3">
+                                            <Square className="h-3.5 w-3.5 fill-current sm:mr-1.5" />
+                                            <span className="hidden sm:inline">Stop</span>
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            size="sm"
+                                            onClick={() => onStart(threadCount)}
+                                            disabled={startDisabled}
+                                            className="h-8 rounded-full px-3"
+                                        >
+                                            <Play className="h-3.5 w-3.5 fill-current sm:mr-1.5" />
+                                            <span className="hidden sm:inline">Start</span>
+                                        </Button>
+                                    )}
                                 </div>
-                                <span className="text-sm font-bold tabular-nums text-foreground">{metrics.duration}</span>
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center space-x-4 z-20">
-                        <div className="flex items-center space-x-3 z-20">
+                    <div data-testid="header-controls" className={`flex min-w-0 justify-end transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${showFloatingStats ? 'translate-x-5 opacity-0 blur-sm pointer-events-none' : 'translate-x-0 opacity-100 blur-0'}`}>
+                        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={onToggleTheme}
-                                className="rounded-full border border-border/60 bg-background/60 backdrop-blur hover:bg-accent/70"
+                                className="h-9 w-9 rounded-md border border-border/60 bg-background/70 backdrop-blur hover:bg-accent/70"
                                 aria-label="Toggle theme"
                             >
                                 {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
@@ -221,52 +174,43 @@ export function DashboardLayout({
 
                             {/* Status Control - Collapsible (Level 2) */}
                             <div
-                                className={`flex items-center bg-muted/50 rounded-full transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden
-                                ${isCollapsed(2) ? 'w-8 h-8 px-0 justify-center bg-transparent' : 'w-auto h-8 px-3 space-x-2'}`}
-                                style={{ transitionDelay: showFloatingStats ? '50ms' : '100ms' }}
+                                className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md bg-muted/50 px-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] sm:w-auto sm:space-x-2 sm:px-3"
                             >
                                 <div className={`h-2.5 w-2.5 rounded-full flex-shrink-0 transition-all duration-500 ${isTesting ? 'bg-green-500 animate-pulse' : 'bg-slate-500'}`} />
-                                <div className={`flex items-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] origin-left
-                                ${isCollapsed(2) ? 'w-0 opacity-0 translate-x-4' : 'w-auto opacity-100 translate-x-0'}`}>
+                                <div className="flex w-0 origin-left translate-x-4 items-center opacity-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] sm:w-auto sm:translate-x-0 sm:opacity-100">
                                     <span className="text-xs font-medium text-muted-foreground uppercase whitespace-nowrap px-1">
                                         {testStatus}
                                     </span>
                                 </div>
                             </div>
 
-                            <div className="h-4 w-px bg-border"></div>
+                            <div className="hidden h-4 w-px bg-border sm:block"></div>
 
                             {/* Start/Stop Button - Collapsible (Level 3) */}
-                            <div
-                                className={`transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden ${isCollapsed(3) ? 'w-9' : 'w-auto'}`}
-                                style={{ transitionDelay: showFloatingStats ? '100ms' : '50ms' }}
-                            >
+                            <div className="overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
                                 {isTesting ? (
-                                    <Button variant="destructive" size="sm" onClick={onStop} className={`transition-all duration-500 ${isCollapsed(3) ? 'px-0 w-9' : 'px-3'}`}>
-                                        <Square className={`h-4 w-4 fill-current ${isCollapsed(3) ? 'mr-0' : 'mr-2'}`} />
-                                        <span className={`whitespace-nowrap overflow-hidden transition-all duration-500 ${isCollapsed(3) ? 'w-0 opacity-0 translate-x-4' : 'w-auto opacity-100 translate-x-0'}`}>Stop</span>
+                                    <Button variant="destructive" size="sm" onClick={onStop} className="px-3 transition-all duration-300">
+                                        <Square className="mr-0 h-4 w-4 fill-current sm:mr-2" />
+                                        <span className="hidden whitespace-nowrap sm:inline">Stop</span>
                                     </Button>
                                 ) : (
                                     <Button
                                         size="sm"
                                         onClick={() => onStart(threadCount)}
                                         disabled={startDisabled}
-                                        className={`transition-all duration-500 ${isCollapsed(3) ? 'px-0 w-9' : 'px-3'}`}
+                                        className="px-3 transition-all duration-300"
                                     >
-                                        <Play className={`h-4 w-4 fill-current ${isCollapsed(3) ? 'mr-0' : 'mr-2'}`} />
-                                        <span className={`whitespace-nowrap overflow-hidden transition-all duration-500 ${isCollapsed(3) ? 'w-0 opacity-0 translate-x-4' : 'w-auto opacity-100 translate-x-0'}`}>Start</span>
+                                        <Play className="mr-0 h-4 w-4 fill-current sm:mr-2" />
+                                        <span className="hidden whitespace-nowrap sm:inline">Start</span>
                                     </Button>
                                 )}
                             </div>
 
                             {/* Export Button - Collapsible (Level 4 - Last to Collapse) */}
-                            <div
-                                className={`transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden hidden sm:block ${isCollapsed(4) ? 'w-9' : 'w-auto'}`}
-                                style={{ transitionDelay: showFloatingStats ? '150ms' : '0ms' }}
-                            >
-                                <Button variant="outline" size="sm" onClick={handleExport} disabled={isTesting} className={`transition-all duration-500 ${isCollapsed(4) ? 'px-0 w-9' : 'px-3'}`}>
-                                    <Download className={`h-4 w-4 ${isCollapsed(4) ? 'mr-0' : 'mr-2'}`} />
-                                    <span className={`whitespace-nowrap overflow-hidden transition-all duration-500 ${isCollapsed(4) ? 'w-0 opacity-0 translate-x-4' : 'w-auto opacity-100 translate-x-0'}`}>Export</span>
+                            <div className="hidden overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] sm:block">
+                                <Button variant="outline" size="sm" onClick={handleExport} disabled={isTesting} className="px-3 transition-all duration-300">
+                                    <Download className="mr-2 h-4 w-4" />
+                                    <span className="whitespace-nowrap">Export</span>
                                 </Button>
                             </div>
                         </div>
@@ -336,6 +280,7 @@ export function DashboardLayout({
                             unit="MB/s"
                             icon={Zap}
                             colorClass="text-[#0070F3]"
+                            detail={`Peak ${metrics.peakSpeed} MB/s`}
                         />
                         <StatsCard
                             title="Latency"

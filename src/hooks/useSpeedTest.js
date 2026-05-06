@@ -1,7 +1,17 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import {
+    applyTrafficOutcome,
+    calculateWeightedLatency,
+    readStreamChunkWithTimeout,
+    selectHealthyTrafficNode,
+} from '../lib/speedMetrics';
 
 const CONFIG = {
     requestTimeout: 5000,
+    trafficReadIdleTimeout: 3000,
+    badNodeCooldownBase: 5000,
+    badNodeCooldownMax: 30000,
+    minUsefulTrafficBytes: 512 * 1024,
     logLimit: 50,
     chartUpdateInterval: 1000,
     latencyUpdateInterval: 1000
@@ -14,6 +24,7 @@ export function useSpeedTest() {
     // Metrics
     const [metrics, setMetrics] = useState({
         speed: '0.00', // MB/s (Total)
+        peakSpeed: '0.00',
         delay: '--',   // ms (Average)
         totalFlow: 0,
         totalFlowStr: '0.00 KB',
@@ -42,6 +53,9 @@ export function useSpeedTest() {
     const latencyTimerRef = useRef(null);
     const abortControllerRef = useRef(new AbortController());
     const latencyTickingRef = useRef(false);
+    const lastAggregateTimeRef = useRef(0);
+    const peakSpeedRef = useRef(0);
+    const nodeCursorRef = useRef(0);
 
     // State for per-node status table
     const [workerStats, setWorkerStats] = useState([]);
@@ -55,6 +69,28 @@ export function useSpeedTest() {
         if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
         if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
         return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+    };
+
+    const createRequestController = (signal, timeoutMs) => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        const onAbort = () => controller.abort();
+        if (signal) signal.addEventListener('abort', onAbort);
+        let timeoutCleared = false;
+        const clearRequestTimeout = () => {
+            if (timeoutCleared) return;
+            timeoutCleared = true;
+            clearTimeout(timeoutId);
+        };
+
+        return {
+            controller,
+            clearRequestTimeout,
+            cleanup: () => {
+                clearRequestTimeout();
+                if (signal) signal.removeEventListener('abort', onAbort);
+            }
+        };
     };
 
     const appendLog = useCallback((content, type = 'info') => {
@@ -97,16 +133,27 @@ export function useSpeedTest() {
         activeThreadsRef.current++;
 
         while (!signal.aborted) {
-            // 1. Pick a random node
-            // We use simple random weighting for now. Could be round-robin or weighted by speed.
-            const node = nodes[Math.floor(Math.random() * nodes.length)];
+            const selected = selectHealthyTrafficNode(
+                nodes,
+                nodeStatsRef.current,
+                nodeCursorRef.current,
+                Date.now()
+            );
+
+            if (!selected) {
+                await new Promise(r => setTimeout(r, 250));
+                continue;
+            }
+
+            const node = selected.node;
+            nodeCursorRef.current = selected.nextCursor;
             const nodeId = node.id;
 
             // Ensure node entry exists (it should)
             if (!nodeStatsRef.current[nodeId]) continue;
 
             // Update status to running if not error
-            if (nodeStatsRef.current[nodeId].status === 'pending' || nodeStatsRef.current[nodeId].status === 'pinging') {
+            if (nodeStatsRef.current[nodeId].status === 'pending' || nodeStatsRef.current[nodeId].status === 'pinging' || nodeStatsRef.current[nodeId].status === 'cooling') {
                 nodeStatsRef.current[nodeId].status = 'downloading';
             }
 
@@ -115,13 +162,16 @@ export function useSpeedTest() {
             // Unique cache bust for every single request
             const cacheBust = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}-${threadId}-${Math.random()}`;
 
+            const { controller, clearRequestTimeout, cleanup } = createRequestController(signal, CONFIG.requestTimeout);
+
             try {
                 const reqStart = performance.now();
                 const response = await fetch(cacheBust, {
-                    signal: signal,
+                    signal: controller.signal,
                     cache: 'no-store',
                     mode: 'cors'
                 });
+                clearRequestTimeout();
 
                 // Update latency from traffic thread (TTFB)
                 const lat = Math.round(performance.now() - reqStart);
@@ -129,14 +179,20 @@ export function useSpeedTest() {
                     nodeStatsRef.current[nodeId].latency = lat;
                 }
 
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 if (!response.body) throw new Error("No body");
 
                 const reader = response.body.getReader();
                 let lastChunkTime = performance.now();
                 const streamStartTime = performance.now();
+                let requestBytes = 0;
 
                 while (true) {
-                    const { done, value } = await reader.read();
+                    const { done, value } = await readStreamChunkWithTimeout(
+                        reader,
+                        CONFIG.trafficReadIdleTimeout,
+                        controller
+                    );
                     if (done) break;
 
                     // Force rotation of connections to allow latency checks and fresh TTFB samples
@@ -152,35 +208,47 @@ export function useSpeedTest() {
                     if (value) {
                         const now = performance.now();
                         const chunkSize = value.length;
-                        const duration = (now - lastChunkTime) / 1000; // seconds
 
                         // Atomic-like update to the specific node's stats
                         if (nodeStatsRef.current[nodeId]) {
                             nodeStatsRef.current[nodeId].bytes += chunkSize;
-
-                            // Instant speed calculation for this thread's contribution
-                            // Aggregation will sum these up, but here we update the node's "current speed" 
-                            // Note: This is tricky with multiple threads hitting same node. 
-                            // We should probably just track "bytes in last second" for the node, but for simplicity:
-                            // We can add "bytes this interval" and let the aggregator calc speed?
-                            // Or just simplistic: Speed = Chunk / Duration. 
-                            // Since JS is single threaded, we can accumulate "speed points" or just rely on bytes/sec calculation in aggregator?
-                            // BETTER APPROACH: The aggregator should calculate speed based on (NewBytes - OldBytes) / Interval.
-                            // But keeping logical compatibility with manual update:
-                            // We will just accumulate bytes. The speed field on the node might not reflect instantaneous "thread sum" correctly if we just overwrite it.
-                            // FIX: We won't write `node.speed` here. We will let the aggregator calculate speed based on byte delta.
+                            requestBytes += chunkSize;
                         }
 
                         lastChunkTime = now;
                     }
                 }
+
+                applyTrafficOutcome(nodeStatsRef.current[nodeId], {
+                    ok: true,
+                    bytes: requestBytes,
+                    now: Date.now(),
+                }, {
+                    minUsefulBytes: CONFIG.minUsefulTrafficBytes,
+                    cooldownBaseMs: CONFIG.badNodeCooldownBase,
+                    cooldownMaxMs: CONFIG.badNodeCooldownMax,
+                });
             } catch (e) {
                 // Ignore Abort errors
-                if (e.name !== 'AbortError') {
-                    // console.error(e); // Optional debug
-                    // Don't mark node as error immediately as other threads might be fine
-                    // nodeStatsRef.current[nodeId].status = 'warning'; 
+                if (e.name !== 'AbortError' && !signal.aborted) {
+                    const entry = nodeStatsRef.current[nodeId];
+                    if (entry) {
+                        entry.timeouts = (entry.timeouts || 0) + 1;
+                    }
                 }
+                if (!signal.aborted) {
+                    applyTrafficOutcome(nodeStatsRef.current[nodeId], {
+                        ok: false,
+                        bytes: 0,
+                        now: Date.now(),
+                    }, {
+                        minUsefulBytes: CONFIG.minUsefulTrafficBytes,
+                        cooldownBaseMs: CONFIG.badNodeCooldownBase,
+                        cooldownMaxMs: CONFIG.badNodeCooldownMax,
+                    });
+                }
+            } finally {
+                cleanup();
             }
 
             // Small delay to prevent CPU spinning if network fails instantly
@@ -195,6 +263,11 @@ export function useSpeedTest() {
     const lastBytesMapRef = useRef({}); // { [nodeId]: totalBytesAtLastTick }
 
     const updateAggregates = () => {
+        const now = performance.now();
+        const lastAggregateTime = lastAggregateTimeRef.current || now;
+        const elapsedSeconds = Math.max((now - lastAggregateTime) / 1000, 0.25);
+        lastAggregateTimeRef.current = now;
+
         // 1. Duration
         let duration = '00:00';
         if (testStartTimeRef.current) {
@@ -206,19 +279,18 @@ export function useSpeedTest() {
 
         let totalSpeed = 0;
         let totalBytesSession = 0;
-        let validLatencySum = 0;
-        let validLatencyCount = 0;
         const currentStats = [];
 
         // 2. Iterate each node to calc speed based on byte delta
         Object.values(nodeStatsRef.current).forEach(node => {
             const currentBytes = node.bytes;
             const lastBytes = lastBytesMapRef.current[node.id] || 0;
-            const deltaBytes = currentBytes - lastBytes;
+            const deltaBytes = Math.max(currentBytes - lastBytes, 0);
 
-            // Calculate speed for this node based on 1s interval (CONFIG.chartUpdateInterval)
-            // Speed = MB per second
-            const nodeSpeed = (deltaBytes / (1024 * 1024)) / (CONFIG.chartUpdateInterval / 1000);
+            // Use the real sampling interval. Browser timers can drift when the tab is busy,
+            // throttled, or resumed, and a fixed 1s divisor creates false traffic spikes.
+            const rawNodeSpeed = (deltaBytes / (1024 * 1024)) / elapsedSeconds;
+            const nodeSpeed = Number.isFinite(rawNodeSpeed) ? rawNodeSpeed : 0;
 
             // Update the node's speed display property
             node.speed = nodeSpeed;
@@ -230,11 +302,6 @@ export function useSpeedTest() {
             totalSpeed += nodeSpeed;
             totalBytesSession += currentBytes;
 
-            if (node.latency !== null) {
-                validLatencySum += node.latency;
-                validLatencyCount++;
-            }
-
             // Push to array for Table
             currentStats.push({
                 ...node,
@@ -243,16 +310,16 @@ export function useSpeedTest() {
             });
         });
 
-        const avgLatency = validLatencyCount > 0
-            ? Math.round(validLatencySum / validLatencyCount)
-            : null;
+        const weightedLatency = calculateWeightedLatency(Object.values(nodeStatsRef.current));
 
         const totalBytes = globalBytesRef.current + totalBytesSession;
+        peakSpeedRef.current = Math.max(peakSpeedRef.current, totalSpeed);
 
         // 3. Update Global State
         setMetrics({
             speed: totalSpeed.toFixed(2),
-            delay: avgLatency !== null ? String(avgLatency) : 'Calculating...',
+            peakSpeed: peakSpeedRef.current.toFixed(2),
+            delay: weightedLatency !== null ? String(weightedLatency) : 'Calculating...',
             totalFlow: totalBytes,
             totalFlowStr: formatFlow(totalBytes),
             duration
@@ -264,7 +331,7 @@ export function useSpeedTest() {
         const cData = chartDataRef.current;
         cData.time.push(getCurrentTime());
         cData.speed.push(Number(totalSpeed.toFixed(2)));
-        cData.delay.push(avgLatency !== null ? avgLatency : 0);
+        cData.delay.push(weightedLatency !== null ? weightedLatency : 0);
 
         if (onChartUpdateRef.current) {
             onChartUpdateRef.current(cData);
@@ -287,6 +354,9 @@ export function useSpeedTest() {
         nodeStatsRef.current = {};
         lastBytesMapRef.current = {};
         activeThreadsRef.current = 0;
+        lastAggregateTimeRef.current = performance.now();
+        peakSpeedRef.current = 0;
+        nodeCursorRef.current = 0;
 
         // Initialize Node Stats
         nodes.forEach(n => {
@@ -297,7 +367,10 @@ export function useSpeedTest() {
                 bytes: 0,
                 latency: null,
                 status: 'pending',
-                isPinging: false
+                isPinging: false,
+                timeouts: 0,
+                failures: 0,
+                cooldownUntil: 0
             };
         });
 
